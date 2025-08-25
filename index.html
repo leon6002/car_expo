@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>智能小车控制系统</title>
+    <link rel="stylesheet" href="./assets/css/main.css">
+
+    <!-- FreeMaster 客户端库 -->
+    <script src="./assets/js/jquery-3.7.1.min.js"></script>
+    <script type="text/javascript" src="./assets/js/simple-jsonrpc-js.js"></script>
+    <script type="text/javascript" src="./assets/js/freemaster-client.js"></script>
+    <script type="text/javascript" src="./assets/js/main.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部区域 -->
+        <header class="header">
+            <div class="header-left">
+                <div class="connection-status">
+                    <div id="connection-indicator" class="indicator disconnected"></div>
+                    <span>连接状态</span>
+                </div>
+            </div>
+            <h1 class="title">智能小车控制系统</h1>
+            <div class="header-right">
+                <!-- 按钮已移除 -->
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 视频区域 -->
+            <section class="video-section">
+                <div class="video-container">
+                    <video id="car-video" controls muted loop>
+                        <source src="./assets/videos/car_demo.mp4" type="video/mp4">
+                        您的浏览器不支持视频播放
+                    </video>
+                    <!-- <div class="video-overlay" id="video-overlay">
+                        <div class="play-prompt">
+                            <i class="play-icon">▶</i>
+                            <p>点击"开始行驶"开始视频</p>
+                        </div>
+                    </div> -->
+                </div>
+            </section>
+
+            <!-- 控制面板 -->
+            <section class="control-panel">
+                <!-- 主控制区域 -->
+                <div class="main-controls">
+                    <button id="start-driving" class="control-btn primary">
+                        <i class="icon">🚗</i>
+                        <span>开始行驶</span>
+                    </button>
+                    <button id="update-data" class="control-btn secondary">
+                        <i class="icon">🔄</i>
+                        <span>数据更新</span>
+                    </button>
+                </div>
+
+                <!-- CAN信号控制区域 -->
+                <div class="can-controls">
+                    <h3>CAN信号控制</h3>
+
+                    <!-- 门控制区域 -->
+                    <div class="door-controls">
+                        <div class="control-group">
+                            <label>左门控制</label>
+                            <div class="door-buttons">
+                                <button class="door-btn" data-variable="CAN_DW.CAN_LeftDoor" data-value="1">
+                                    <i class="icon">🚪</i>
+                                    <span>开门</span>
+                                </button>
+                                <button class="door-btn" data-variable="CAN_DW.CAN_LeftDoor" data-value="2">
+                                    <i class="icon">🚪</i>
+                                    <span>关门</span>
+                                </button>
+                                <button class="door-btn reset" data-variable="CAN_DW.CAN_LeftDoor" data-value="0">
+                                    <i class="icon">⏹</i>
+                                    <span>停止</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>右门控制</label>
+                            <div class="door-buttons">
+                                <button class="door-btn" data-variable="CAN_DW.CAN_RightDoor" data-value="1">
+                                    <i class="icon">🚪</i>
+                                    <span>开门</span>
+                                </button>
+                                <button class="door-btn" data-variable="CAN_DW.CAN_RightDoor" data-value="2">
+                                    <i class="icon">🚪</i>
+                                    <span>关门</span>
+                                </button>
+                                <button class="door-btn reset" data-variable="CAN_DW.CAN_RightDoor" data-value="0">
+                                    <i class="icon">⏹</i>
+                                    <span>停止</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 下拉框控制区域 -->
+                    <div class="dropdown-controls">
+                        <div class="control-group">
+                            <label for="fan-select">风扇档位</label>
+                            <select id="fan-select" class="control-select" data-variable="CAN_DW.CAN_FanStatus">
+                                <option value="0">档位 0</option>
+                                <option value="1">档位 1</option>
+                                <option value="2">档位 2</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="light-select">灯带闪烁模式</label>
+                            <select id="light-select" class="control-select" data-variable="CAN_DW.CAN_LightStatus">
+                                <option value="0">模式 1</option>
+                                <option value="1">模式 2</option>
+                                <option value="2">模式 3</option>
+                                <option value="3">模式 4</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 状态显示区域 -->
+                <div class="status-panel">
+                    <h3>系统状态</h3>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <label>行驶状态:</label>
+                            <span id="driving-status">停止</span>
+                        </div>
+                        <div class="status-item">
+                            <label>数据更新:</label>
+                            <span id="update-status">待更新</span>
+                        </div>
+                        <div class="status-item">
+                            <label>左门状态:</label>
+                            <span id="left-door-status">停止</span>
+                        </div>
+                        <div class="status-item">
+                            <label>右门状态:</label>
+                            <span id="right-door-status">停止</span>
+                        </div>
+                        <div class="status-item">
+                            <label>灯带模式:</label>
+                            <span id="light-status">模式 1</span>
+                        </div>
+                        <div class="status-item">
+                            <label>风扇档位:</label>
+                            <span id="fan-status">档位 0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 日志区域 -->
+        <footer class="log-section">
+            <h3>系统日志</h3>
+            <div id="log-container" class="log-container">
+                <div class="log-entry info">系统初始化完成</div>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
