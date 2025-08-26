@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D 模型测试页面</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+        background: #f0f0f0;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .test-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .car-3d-container {
+        width: 100%;
+        height: 500px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .loading-3d {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+        z-index: 10;
+      }
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .controls {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+      }
+      .btn-primary {
+        background: #007bff;
+        color: white;
+      }
+      .btn-primary:hover {
+        background: #0056b3;
+      }
+      .btn-secondary {
+        background: #6c757d;
+        color: white;
+      }
+      .btn-secondary:hover {
+        background: #545b62;
+      }
+      .info {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+      .error {
+        background: #ffe7e7;
+        border: 1px solid #ffb3b3;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #d63384;
+      }
+      .controls-hint {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>3D 车辆模型测试</h1>
+
+      <div class="info">
+        <h3>测试说明</h3>
+        <p>此页面用于测试 3D 车辆模型的加载和门动画功能。</p>
+        <p><strong>模型文件位置:</strong> assets/models/Car.glb</p>
+        <p><strong>控制方式:</strong> 鼠标拖拽旋转，滚轮缩放</p>
+        <p><strong>门动画:</strong> 通过代码实现旋转动画，开门角度约72度</p>
+      </div>
+
+      <div class="test-container">
+        <h2>3D 模型显示</h2>
+        <div class="car-3d-container" id="test-3d-container">
+          <div class="loading-3d">
+            <div class="loading-spinner"></div>
+            <p>正在加载3D模型...</p>
+          </div>
+          <div class="controls-hint">拖拽旋转 | 滚轮缩放</div>
+        </div>
+
+        <div class="controls">
+          <button class="btn btn-primary" onclick="testLeftDoor(1)">
+            左门开启
+          </button>
+          <button class="btn btn-primary" onclick="testLeftDoor(2)">
+            左门关闭
+          </button>
+          <button class="btn btn-secondary" onclick="testLeftDoor(0)">
+            左门停止
+          </button>
+
+          <button class="btn btn-primary" onclick="testRightDoor(1)">
+            右门开启
+          </button>
+          <button class="btn btn-primary" onclick="testRightDoor(2)">
+            右门关闭
+          </button>
+          <button class="btn btn-secondary" onclick="testRightDoor(0)">
+            右门停止
+          </button>
+
+          <button class="btn btn-secondary" onclick="resetCamera()">
+            重置视角
+          </button>
+
+          <button
+            class="btn btn-success"
+            id="drivingBtn"
+            onclick="toggleDriving()"
+          >
+            🚗 开始行驶
+          </button>
+
+          <button
+            class="btn btn-warning"
+            id="headlightsBtn"
+            onclick="toggleHeadlights()"
+          >
+            💡 前灯
+          </button>
+
+          <button
+            class="btn btn-danger"
+            id="taillightsBtn"
+            onclick="toggleTaillights()"
+          >
+            🔴 尾灯
+          </button>
+
+          <button
+            class="btn btn-info"
+            id="brakelightsBtn"
+            onclick="toggleBrakelights()"
+          >
+            🛑 刹车灯
+          </button>
+        </div>
+      </div>
+
+      <div class="test-container">
+        <h2>测试日志</h2>
+        <div
+          id="test-log"
+          style="
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+          "
+        >
+          <div>等待初始化...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three.js 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- 3D 渲染器 -->
+    <script src="./assets/js/car-3d-renderer.js"></script>
+
+    <script>
+      let testRenderer = null;
+
+      // 初始化测试
+      window.addEventListener("load", () => {
+        log("页面加载完成，开始初始化3D渲染器...");
+
+        setTimeout(() => {
+          try {
+            testRenderer = new Car3DRenderer("test-3d-container");
+            log("3D渲染器初始化成功");
+
+            // 监听模型加载完成
+            document.addEventListener("car3dLoaded", () => {
+              log("车辆3D模型加载完成！");
+            });
+          } catch (error) {
+            log("3D渲染器初始化失败: " + error.message, "error");
+          }
+        }, 500);
+      });
+
+      // 测试函数
+      function testLeftDoor(action) {
+        if (!testRenderer) {
+          log("3D渲染器未初始化", "error");
+          return;
+        }
+        testRenderer.controlLeftDoor(action);
+        const actionText =
+          action === 1 ? "开启" : action === 2 ? "关闭" : "停止";
+        log(`左门${actionText}`);
+      }
+
+      function testRightDoor(action) {
+        if (!testRenderer) {
+          log("3D渲染器未初始化", "error");
+          return;
+        }
+        testRenderer.controlRightDoor(action);
+        const actionText =
+          action === 1 ? "开启" : action === 2 ? "关闭" : "停止";
+        log(`右门${actionText}`);
+      }
+
+      function resetCamera() {
+        if (!testRenderer) {
+          log("3D渲染器未初始化", "error");
+          return;
+        }
+        testRenderer.setCameraPosition(
+          new THREE.Vector3(1, 1, 1),
+          new THREE.Vector3(0, 0, 0)
+        );
+        log("相机视角已重置");
+      }
+
+      // 行驶状态
+      let isDriving = false;
+
+      function toggleDriving() {
+        if (!testRenderer) {
+          log("3D渲染器未初始化", "error");
+          return;
+        }
+
+        const btn = document.getElementById("drivingBtn");
+
+        if (!isDriving) {
+          // 开始行驶
+          testRenderer.startWheelRotation(15);
+          testRenderer.startRoadMovement(0.1);
+          isDriving = true;
+          btn.textContent = "🛑 停止行驶";
+          btn.classList.remove("btn-success");
+          btn.classList.add("btn-danger");
+          log("开始行驶：轮子旋转 + 道路移动");
+        } else {
+          // 停止行驶
+          testRenderer.stopWheelRotation();
+          testRenderer.stopRoadMovement();
+          isDriving = false;
+          btn.textContent = "🚗 开始行驶";
+          btn.classList.remove("btn-danger");
+          btn.classList.add("btn-success");
+          log("停止行驶");
+        }
+      }
+
+      // 日志函数
+      function log(message, type = "info") {
+        const logContainer = document.getElementById("test-log");
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement("div");
+        logEntry.style.color = type === "error" ? "#d63384" : "#333";
+        logEntry.textContent = `[${timestamp}] ${message}`;
+        logContainer.appendChild(logEntry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+      }
+
+      // 车灯控制函数
+      function toggleHeadlights() {
+        if (!testRenderer) {
+          log("3D渲染器未初始化", "error");
+          return;
+        }
+
+        const isOn = testRenderer.toggleHeadlights();
+        const btn = document.getElementById("headlightsBtn");
+        if (isOn) {
+          btn.classList.remove("btn-warning");
+          btn.classList.add("btn-success");
+          log("前灯已开启");
+        } else {
+          btn.classList.remove("btn-success");
+          btn.classList.add("btn-warning");
+          log("前灯已关闭");
+        }
+      }
+
+      function toggleTaillights() {
+        if (!testRenderer) {
+          log("3D渲染器未初始化", "error");
+          return;
+        }
+
+        const isOn = testRenderer.toggleTaillights();
+        const btn = document.getElementById("taillightsBtn");
+        if (isOn) {
+          btn.classList.remove("btn-danger");
+          btn.classList.add("btn-success");
+          log("尾灯已开启");
+        } else {
+          btn.classList.remove("btn-success");
+          btn.classList.add("btn-danger");
+          log("尾灯已关闭");
+        }
+      }
+
+      function toggleBrakelights() {
+        if (!testRenderer) {
+          log("3D渲染器未初始化", "error");
+          return;
+        }
+
+        const isOn = testRenderer.toggleBrakelights();
+        const btn = document.getElementById("brakelightsBtn");
+        if (isOn) {
+          btn.classList.remove("btn-info");
+          btn.classList.add("btn-success");
+          log("刹车灯已开启");
+        } else {
+          btn.classList.remove("btn-success");
+          btn.classList.add("btn-info");
+          log("刹车灯已关闭");
+        }
+      }
+
+      // 页面加载完成后显示车灯信息
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          if (testRenderer) {
+            const lightsInfo = testRenderer.getLightsInfo();
+            log(
+              `车灯系统初始化完成: 前灯${lightsInfo.headlights}个, 尾灯${lightsInfo.taillights}个, 刹车灯${lightsInfo.brakelights}个`
+            );
+          }
+        }, 3000); // 等待模型加载完成
+      });
+    </script>
+  </body>
+</html>
