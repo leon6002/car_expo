@@ -8,6 +8,7 @@ let pcm = undefined;
 let pcmConnected = false;
 let isDriving = false;
 let updateInterval = null;
+let car3DRenderer = null;
 
 // CAN信号变量状态
 const canVariables = {
@@ -32,6 +33,11 @@ $(document).ready(function() {
     setTimeout(() => {
         checkVideoStatus();
     }, 1000);
+
+    // 初始化3D渲染器
+    setTimeout(() => {
+        initialize3DRenderer();
+    }, 500);
 });
 
 /**
@@ -200,6 +206,13 @@ async function handleStartDriving() {
         updateUIStatus();
         updateStartButton();
 
+        // 开始轮子旋转和道路移动动画
+        if (car3DRenderer) {
+            car3DRenderer.startWheelRotation(10); // 轮子旋转速度为5
+            car3DRenderer.startRoadMovement(0.4); // 道路移动速度为2
+            addLogEntry('3D轮子开始旋转，道路开始移动', 'info');
+        }
+
         addLogEntry('小车开始行驶', 'success');
     } catch (error) {
         addLogEntry('开始行驶失败: ' + error.message, 'error');
@@ -235,6 +248,13 @@ async function handleStopDriving() {
         isDriving = false;
         updateUIStatus();
         updateStartButton();
+
+        // 停止轮子旋转和道路移动动画
+        if (car3DRenderer) {
+            car3DRenderer.stopWheelRotation();
+            car3DRenderer.stopRoadMovement();
+            addLogEntry('3D轮子停止旋转，道路停止移动', 'info');
+        }
 
         addLogEntry('小车已停止', 'success');
     } catch (error) {
@@ -436,6 +456,15 @@ async function handleDoorButtonClick(event) {
         updateDoorButtonsUI(variable, value);
         updateStatusDisplay(variable, value);
 
+        // 控制3D模型门动画
+        if (car3DRenderer) {
+            if (variable === 'CAN_DW.CAN_LeftDoor') {
+                car3DRenderer.controlLeftDoor(value);
+            } else if (variable === 'CAN_DW.CAN_RightDoor') {
+                car3DRenderer.controlRightDoor(value);
+            }
+        }
+
         const variableName = getVariableDisplayName(variable);
         const actionText = getDoorActionText(value);
         addLogEntry(`${variableName} ${actionText}`, 'info');
@@ -471,6 +500,11 @@ async function handleSelectChange(event) {
         canVariables[variable] = value;
 
         updateStatusDisplay(variable, value);
+
+        // 控制3D模型灯光动画
+        if (car3DRenderer && variable === 'CAN_DW.CAN_LightStatus') {
+            car3DRenderer.controlLights(value);
+        }
 
         const variableName = getVariableDisplayName(variable);
         const valueText = getSelectValueText(variable, value);
@@ -813,5 +847,32 @@ function addLogEntry(message, type = 'info') {
         }
     } else {
         console.log(`[${timestamp}] ${message}`);
+    }
+}
+
+
+
+/**
+ * 初始化3D渲染器
+ */
+function initialize3DRenderer() {
+    if (typeof Car3DRenderer === 'undefined') {
+        console.error('Car3DRenderer 类未找到，请检查 car-3d-renderer.js 是否正确加载');
+        addLogEntry('3D渲染器加载失败', 'error');
+        return;
+    }
+
+    try {
+        car3DRenderer = new Car3DRenderer('car-3d-container');
+        addLogEntry('3D渲染器初始化成功', 'success');
+
+        // 监听模型加载完成事件
+        document.addEventListener('car3dLoaded', () => {
+            addLogEntry('车辆3D模型加载完成', 'success');
+        });
+
+    } catch (error) {
+        console.error('3D渲染器初始化失败:', error);
+        addLogEntry('3D渲染器初始化失败: ' + error.message, 'error');
     }
 }

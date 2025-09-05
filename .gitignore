@@ -156,3 +156,10 @@ assets/videos/
 *.3gp
 *.ogv
 
+# 3D Models (allow specific model files)
+# *.glb
+# *.gltf
+# *.fbx
+# *.obj
+# Uncomment above lines if you want to ignore all 3D models
+
