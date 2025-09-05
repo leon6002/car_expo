@@ -869,10 +869,121 @@ function initialize3DRenderer() {
         // 监听模型加载完成事件
         document.addEventListener('car3dLoaded', () => {
             addLogEntry('车辆3D模型加载完成', 'success');
+            // 模型加载完成后初始化运镜控制
+            initializeCameraControls();
         });
 
     } catch (error) {
         console.error('3D渲染器初始化失败:', error);
         addLogEntry('3D渲染器初始化失败: ' + error.message, 'error');
     }
+}
+
+/**
+ * 初始化运镜控制
+ */
+function initializeCameraControls() {
+    console.log('初始化运镜控制');
+
+    // 获取所有运镜按钮
+    const cameraButtons = document.querySelectorAll('.camera-btn[data-mode]');
+    const stopButton = document.getElementById('stop-camera');
+
+    // 为每个运镜模式按钮添加事件监听器
+    cameraButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const mode = button.getAttribute('data-mode');
+            startCameraAnimation(mode);
+        });
+    });
+
+    // 停止运镜按钮
+    if (stopButton) {
+        stopButton.addEventListener('click', () => {
+            stopCameraAnimation();
+        });
+    }
+
+    addLogEntry('运镜控制初始化完成', 'success');
+}
+
+/**
+ * 开始运镜动画
+ */
+function startCameraAnimation(mode) {
+    if (!car3DRenderer) {
+        console.warn('3D渲染器未初始化');
+        addLogEntry('3D渲染器未初始化，无法启动运镜', 'warning');
+        return;
+    }
+
+    console.log(`启动运镜模式: ${mode}`);
+
+    // 更新按钮状态
+    updateCameraButtonStates(mode);
+
+    // 启动运镜动画
+    const duration = 12000; // 12秒
+    car3DRenderer.setCameraAnimationMode(mode, duration);
+
+    // 添加日志
+    const modeNames = {
+        'orbit': '环绕运镜',
+        'showcase': '展示运镜',
+        'cinematic': '电影运镜',
+        'follow': '跟随运镜'
+    };
+
+    addLogEntry(`启动${modeNames[mode] || mode}`, 'info');
+
+    // 设置定时器自动停止
+    setTimeout(() => {
+        if (car3DRenderer && car3DRenderer.getCameraAnimationStatus().isActive) {
+            stopCameraAnimation();
+        }
+    }, duration + 500);
+}
+
+/**
+ * 停止运镜动画
+ */
+function stopCameraAnimation() {
+    if (!car3DRenderer) {
+        return;
+    }
+
+    console.log('停止运镜动画');
+    car3DRenderer.stopCameraAnimation();
+
+    // 重置按钮状态
+    updateCameraButtonStates(null);
+
+    addLogEntry('运镜动画已停止', 'info');
+}
+
+/**
+ * 更新运镜按钮状态
+ */
+function updateCameraButtonStates(activeMode) {
+    const cameraButtons = document.querySelectorAll('.camera-btn[data-mode]');
+
+    cameraButtons.forEach(button => {
+        const mode = button.getAttribute('data-mode');
+        if (mode === activeMode) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+}
+
+/**
+ * 获取运镜状态信息
+ */
+function getCameraAnimationInfo() {
+    if (!car3DRenderer) {
+        return null;
+    }
+
+    return car3DRenderer.getCameraAnimationStatus();
 }

@@ -71,6 +71,24 @@
                   <p>正在加载3D模型...</p>
                 </div>
                 <div class="controls-hint">拖拽旋转 | 滚轮缩放</div>
+                <!-- 运镜控制面板 -->
+                <div class="camera-controls">
+                  <button class="camera-btn" data-mode="orbit" title="环绕运镜">
+                    <i class="camera-icon orbit"></i>
+                  </button>
+                  <button class="camera-btn" data-mode="showcase" title="展示运镜">
+                    <i class="camera-icon showcase"></i>
+                  </button>
+                  <button class="camera-btn" data-mode="cinematic" title="电影运镜">
+                    <i class="camera-icon cinematic"></i>
+                  </button>
+                  <button class="camera-btn" data-mode="follow" title="跟随运镜">
+                    <i class="camera-icon follow"></i>
+                  </button>
+                  <button class="camera-btn stop" id="stop-camera" title="停止运镜">
+                    <i class="camera-icon stop"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -83,11 +101,11 @@
           <div class="main-controls">
             <h3>主要控制</h3>
             <button id="start-driving" class="control-btn primary">
-              <i class="icon">🚗</i>
+              <i class="icon"></i>
               <span>开始行驶</span>
             </button>
             <button id="update-data" class="control-btn secondary">
-              <i class="icon">🔄</i>
+              <i class="icon"></i>
               <span>数据更新</span>
             </button>
           </div>
@@ -106,7 +124,7 @@
                     data-variable="CAN_DW.CAN_LeftDoor"
                     data-value="2"
                   >
-                    <i class="icon">🚪</i>
+                    <i class="icon"></i>
                     <span>开门</span>
                   </button>
                   <button
@@ -114,7 +132,7 @@
                     data-variable="CAN_DW.CAN_LeftDoor"
                     data-value="1"
                   >
-                    <i class="icon">🚪</i>
+                    <i class="icon"></i>
                     <span>关门</span>
                   </button>
                   <button
@@ -122,7 +140,7 @@
                     data-variable="CAN_DW.CAN_LeftDoor"
                     data-value="0"
                   >
-                    <i class="icon">⏹</i>
+                    <i class="icon"></i>
                     <span>停止</span>
                   </button>
                 </div>
@@ -136,7 +154,7 @@
                     data-variable="CAN_DW.CAN_RightDoor"
                     data-value="1"
                   >
-                    <i class="icon">🚪</i>
+                    <i class="icon"></i>
                     <span>开门</span>
                   </button>
                   <button
@@ -144,7 +162,7 @@
                     data-variable="CAN_DW.CAN_RightDoor"
                     data-value="2"
                   >
-                    <i class="icon">🚪</i>
+                    <i class="icon"></i>
                     <span>关门</span>
                   </button>
                   <button
@@ -152,7 +170,7 @@
                     data-variable="CAN_DW.CAN_RightDoor"
                     data-value="0"
                   >
-                    <i class="icon">⏹</i>
+                    <i class="icon"></i>
                     <span>停止</span>
                   </button>
                 </div>
