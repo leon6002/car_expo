@@ -59,6 +59,18 @@ class Car3DRenderer {
             daylights: false,
             reverselights: false
         };
+
+        // 运镜系统
+        this.cameraAnimation = {
+            isActive: false,
+            mode: 'orbit', // orbit, showcase, cinematic, follow
+            startTime: 0,
+            duration: 10000, // 10秒
+            originalPosition: null,
+            originalTarget: null,
+            keyframes: [],
+            currentKeyframe: 0
+        };
         
         this.init();
     }
@@ -573,6 +585,9 @@ class Car3DRenderer {
 
         // 更新道路移动
         this.updateRoadMovement(delta);
+
+        // 更新运镜动画
+        this.updateCameraAnimation(delta);
 
         this.renderer.render(this.scene, this.camera);
     }
@@ -1254,6 +1269,248 @@ class Car3DRenderer {
             reverselights: this.lights.reverselights.length,
             state: this.lightsState
         };
+    }
+
+    // ==================== 运镜系统 ====================
+
+    // 开始运镜动画
+    startCameraAnimation(mode = 'orbit', duration = 10000) {
+        console.log(`开始运镜动画: ${mode}, 时长: ${duration}ms`);
+
+        // 保存当前相机状态
+        this.cameraAnimation.originalPosition = this.camera.position.clone();
+        this.cameraAnimation.originalTarget = this.controls ? this.controls.target.clone() : new THREE.Vector3(0, 0, 0);
+
+        // 设置动画参数
+        this.cameraAnimation.mode = mode;
+        this.cameraAnimation.duration = duration;
+        this.cameraAnimation.startTime = Date.now();
+        this.cameraAnimation.isActive = true;
+        this.cameraAnimation.currentKeyframe = 0;
+
+        // 根据模式生成关键帧
+        this.generateCameraKeyframes(mode);
+
+        // 禁用手动控制
+        if (this.controls) {
+            this.controls.enabled = false;
+        }
+    }
+
+    // 停止运镜动画
+    stopCameraAnimation() {
+        console.log('停止运镜动画');
+        this.cameraAnimation.isActive = false;
+
+        // 恢复手动控制
+        if (this.controls) {
+            this.controls.enabled = true;
+        }
+    }
+
+    // 生成相机关键帧
+    generateCameraKeyframes(mode) {
+        this.cameraAnimation.keyframes = [];
+
+        switch (mode) {
+            case 'orbit':
+                this.generateOrbitKeyframes();
+                break;
+            case 'showcase':
+                this.generateShowcaseKeyframes();
+                break;
+            case 'cinematic':
+                this.generateCinematicKeyframes();
+                break;
+            case 'follow':
+                this.generateFollowKeyframes();
+                break;
+            default:
+                this.generateOrbitKeyframes();
+        }
+
+        console.log(`生成了 ${this.cameraAnimation.keyframes.length} 个关键帧`);
+    }
+
+    // 生成环绕运镜关键帧
+    generateOrbitKeyframes() {
+        const radius = 12;
+        const height = 3;
+        const target = new THREE.Vector3(0, 0, 0);
+        const steps = 8;
+
+        for (let i = 0; i <= steps; i++) {
+            const angle = (i / steps) * Math.PI * 2;
+            const position = new THREE.Vector3(
+                Math.cos(angle) * radius,
+                height + Math.sin(angle * 2) * 1, // 上下波动
+                Math.sin(angle) * radius
+            );
+
+            this.cameraAnimation.keyframes.push({
+                position: position,
+                target: target.clone(),
+                time: i / steps
+            });
+        }
+    }
+
+    // 生成展示运镜关键帧
+    generateShowcaseKeyframes() {
+        const positions = [
+            // 前方低角度
+            { pos: new THREE.Vector3(0, 1, 8), target: new THREE.Vector3(0, 0, 0) },
+            // 右侧
+            { pos: new THREE.Vector3(8, 2, 0), target: new THREE.Vector3(0, 0, 0) },
+            // 后方高角度
+            { pos: new THREE.Vector3(0, 4, -8), target: new THREE.Vector3(0, 0, 0) },
+            // 左侧
+            { pos: new THREE.Vector3(-8, 2, 0), target: new THREE.Vector3(0, 0, 0) },
+            // 俯视角度
+            { pos: new THREE.Vector3(0, 10, 2), target: new THREE.Vector3(0, 0, 0) },
+            // 回到前方
+            { pos: new THREE.Vector3(0, 1, 8), target: new THREE.Vector3(0, 0, 0) }
+        ];
+
+        positions.forEach((keyframe, index) => {
+            this.cameraAnimation.keyframes.push({
+                position: keyframe.pos,
+                target: keyframe.target,
+                time: index / (positions.length - 1)
+            });
+        });
+    }
+
+    // 生成电影运镜关键帧
+    generateCinematicKeyframes() {
+        const keyframes = [
+            // 开场：远景
+            { pos: new THREE.Vector3(-15, 8, 10), target: new THREE.Vector3(0, 0, 0) },
+            // 推进：中景
+            { pos: new THREE.Vector3(-8, 4, 6), target: new THREE.Vector3(0, 0, 0) },
+            // 特写：车头
+            { pos: new THREE.Vector3(0, 1.5, 4), target: new THREE.Vector3(0, 0, 2) },
+            // 侧面滑动
+            { pos: new THREE.Vector3(6, 2, 2), target: new THREE.Vector3(0, 0, 0) },
+            // 后方追踪
+            { pos: new THREE.Vector3(0, 2, -6), target: new THREE.Vector3(0, 0, 0) },
+            // 高空俯视
+            { pos: new THREE.Vector3(0, 12, 0), target: new THREE.Vector3(0, 0, 0) },
+            // 结尾：回到初始位置
+            { pos: new THREE.Vector3(-8, 2, 1.5), target: new THREE.Vector3(0, 0, 0) }
+        ];
+
+        keyframes.forEach((keyframe, index) => {
+            this.cameraAnimation.keyframes.push({
+                position: keyframe.pos,
+                target: keyframe.target,
+                time: index / (keyframes.length - 1)
+            });
+        });
+    }
+
+    // 生成跟随运镜关键帧（模拟车辆行驶）
+    generateFollowKeyframes() {
+        const carOffset = new THREE.Vector3(-6, 3, 2); // 相对车辆的偏移
+        const target = new THREE.Vector3(0, 0, 0);
+        const steps = 10;
+
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            // 模拟车辆沿道路行驶
+            const carPosition = new THREE.Vector3(
+                Math.sin(t * Math.PI * 2) * 2, // 左右摆动
+                0,
+                t * 10 - 5 // 前进
+            );
+
+            const cameraPosition = carPosition.clone().add(carOffset);
+            const lookTarget = carPosition.clone();
+
+            this.cameraAnimation.keyframes.push({
+                position: cameraPosition,
+                target: lookTarget,
+                time: t
+            });
+        }
+    }
+
+    // 更新运镜动画
+    updateCameraAnimation(delta) {
+        if (!this.cameraAnimation.isActive || this.cameraAnimation.keyframes.length === 0) {
+            return;
+        }
+
+        const elapsed = Date.now() - this.cameraAnimation.startTime;
+        const progress = Math.min(elapsed / this.cameraAnimation.duration, 1);
+
+        if (progress >= 1) {
+            // 动画结束
+            this.stopCameraAnimation();
+            return;
+        }
+
+        // 在关键帧之间插值
+        this.interpolateCameraPosition(progress);
+    }
+
+    // 在关键帧之间插值相机位置
+    interpolateCameraPosition(progress) {
+        const keyframes = this.cameraAnimation.keyframes;
+        if (keyframes.length < 2) return;
+
+        // 找到当前进度对应的关键帧区间
+        let startFrame = 0;
+        let endFrame = 1;
+
+        for (let i = 0; i < keyframes.length - 1; i++) {
+            if (progress >= keyframes[i].time && progress <= keyframes[i + 1].time) {
+                startFrame = i;
+                endFrame = i + 1;
+                break;
+            }
+        }
+
+        const start = keyframes[startFrame];
+        const end = keyframes[endFrame];
+
+        // 计算在当前区间内的插值进度
+        const segmentProgress = (progress - start.time) / (end.time - start.time);
+        const smoothProgress = this.easeInOutCubic(segmentProgress);
+
+        // 插值位置和目标
+        const position = start.position.clone().lerp(end.position, smoothProgress);
+        const target = start.target.clone().lerp(end.target, smoothProgress);
+
+        // 应用到相机
+        this.camera.position.copy(position);
+        this.camera.lookAt(target);
+
+        // 如果有控制器，也更新控制器的目标
+        if (this.controls) {
+            this.controls.target.copy(target);
+        }
+    }
+
+    // 获取运镜状态
+    getCameraAnimationStatus() {
+        return {
+            isActive: this.cameraAnimation.isActive,
+            mode: this.cameraAnimation.mode,
+            progress: this.cameraAnimation.isActive ?
+                Math.min((Date.now() - this.cameraAnimation.startTime) / this.cameraAnimation.duration, 1) : 0,
+            keyframeCount: this.cameraAnimation.keyframes.length
+        };
+    }
+
+    // 设置运镜模式并开始
+    setCameraAnimationMode(mode, duration = 10000) {
+        if (this.cameraAnimation.isActive) {
+            this.stopCameraAnimation();
+        }
+        setTimeout(() => {
+            this.startCameraAnimation(mode, duration);
+        }, 100);
     }
 }
 
