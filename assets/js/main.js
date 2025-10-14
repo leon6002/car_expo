@@ -871,6 +871,10 @@ function initialize3DRenderer() {
             addLogEntry('车辆3D模型加载完成', 'success');
             // 模型加载完成后初始化运镜控制
             initializeCameraControls();
+            // 初始化开门控制
+            initializeDoorControls();
+            // 绑定CAN门控制按钮到3D动画
+            bindCANDoorControlsTo3D();
         });
 
     } catch (error) {
@@ -986,4 +990,234 @@ function getCameraAnimationInfo() {
     }
 
     return car3DRenderer.getCameraAnimationStatus();
+}
+
+/**
+ * 初始化开门控制
+ */
+function initializeDoorControls() {
+    console.log('初始化开门控制');
+
+    // 获取开门按钮
+    const openDoorBtn = document.getElementById('open-door-btn');
+
+    if (openDoorBtn) {
+        openDoorBtn.addEventListener('click', () => {
+            playDoorAnimation();
+        });
+    }
+
+    addLogEntry('开门控制初始化完成', 'success');
+}
+
+/**
+ * 播放开门/关门动画切换（同时控制两个门）
+ */
+function playDoorAnimation() {
+    if (!car3DRenderer) {
+        console.warn('3D渲染器未初始化');
+        addLogEntry('3D渲染器未初始化，无法播放门动画', 'warning');
+        return;
+    }
+
+    console.log('尝试切换双门动画：DoorFLOpen 和 DoorFROpen');
+
+    // 同时控制两个门的动画
+    const doorAnimations = ['DoorFLOpen', 'DoorFROpen'];
+    const result = car3DRenderer.toggleMultipleDoors(doorAnimations);
+
+    if (result.success) {
+        const actionText = result.action === 'open' ? '开门' : '关门';
+
+        // 统计成功的动画数量
+        const successCount = result.results.filter(r => r.success).length;
+        const totalCount = result.results.length;
+
+        if (successCount === totalCount) {
+            addLogEntry(`双门${actionText}动画播放成功`, 'success');
+        } else {
+            addLogEntry(`部分门${actionText}成功 (${successCount}/${totalCount})`, 'warning');
+
+            // 显示详细结果
+            result.results.forEach(r => {
+                const status = r.success ? '成功' : '失败';
+                console.log(`${r.animation}: ${status}`);
+            });
+        }
+
+        // 更新按钮状态和图标
+        updateDoorButtonState(result.action);
+
+        // 同时更新CAN信号控制区域的门状态显示
+        updateCANDoorStatus(result.action);
+
+    } else {
+        addLogEntry('门动画播放失败，请检查动画名称', 'error');
+
+        // 显示详细的失败信息
+        result.results.forEach(r => {
+            if (!r.success) {
+                console.warn(`动画 ${r.animation} 播放失败`);
+            }
+        });
+
+        // 显示可用动画列表
+        const availableAnimations = car3DRenderer.getAvailableAnimations();
+        if (availableAnimations.length > 0) {
+            console.log('可用动画:', availableAnimations);
+            addLogEntry(`可用动画: ${availableAnimations.join(', ')}`, 'info');
+        }
+    }
+}
+
+/**
+ * 更新开门按钮状态
+ */
+function updateDoorButtonState(action) {
+    const openDoorBtn = document.getElementById('open-door-btn');
+    if (!openDoorBtn) return;
+
+    // 移除所有状态类
+    openDoorBtn.classList.remove('active', 'open', 'closed');
+
+    if (action === 'open') {
+        // 开门状态：橙色背景，表示门已打开
+        openDoorBtn.classList.add('active', 'open');
+        openDoorBtn.title = '关闭双门';
+
+        // 更新图标为关门图标
+        const icon = openDoorBtn.querySelector('.model-door-icon');
+        if (icon) {
+            icon.classList.remove('open');
+            icon.classList.add('close');
+        }
+
+    } else {
+        // 关门状态：正常背景，表示门已关闭
+        openDoorBtn.classList.add('closed');
+        openDoorBtn.title = '打开双门';
+
+        // 更新图标为开门图标
+        const icon = openDoorBtn.querySelector('.model-door-icon');
+        if (icon) {
+            icon.classList.remove('close');
+            icon.classList.add('open');
+        }
+
+        // 2秒后移除关门状态，回到正常状态
+        setTimeout(() => {
+            openDoorBtn.classList.remove('closed');
+        }, 2000);
+    }
+}
+
+/**
+ * 更新CAN信号控制区域的门状态显示
+ */
+function updateCANDoorStatus(action) {
+    const leftDoorStatus = document.getElementById('left-door-status');
+    const rightDoorStatus = document.getElementById('right-door-status');
+
+    if (leftDoorStatus && rightDoorStatus) {
+        const statusText = action === 'open' ? '开启' : '关闭';
+        leftDoorStatus.textContent = statusText;
+        rightDoorStatus.textContent = statusText;
+
+        // 更新CAN变量状态
+        if (action === 'open') {
+            canVariables['CAN_DW.CAN_LeftDoor'] = 2;  // 开门 (对应HTML中的data-value="2")
+            canVariables['CAN_DW.CAN_RightDoor'] = 2; // 开门
+        } else {
+            canVariables['CAN_DW.CAN_LeftDoor'] = 1;  // 关门 (对应HTML中的data-value="1")
+            canVariables['CAN_DW.CAN_RightDoor'] = 1; // 关门
+        }
+    }
+}
+
+/**
+ * 绑定CAN门控制按钮到3D动画
+ */
+function bindCANDoorControlsTo3D() {
+    console.log('绑定CAN门控制按钮到3D动画');
+
+    // 获取所有门控制按钮
+    const doorButtons = document.querySelectorAll('.door-controls .door-btn');
+
+    doorButtons.forEach(button => {
+        // 为每个按钮添加点击事件监听器
+        button.addEventListener('click', () => {
+            const variable = button.getAttribute('data-variable');
+            const value = parseInt(button.getAttribute('data-value'));
+
+            console.log(`CAN门控制按钮点击: ${variable} = ${value}`);
+
+            // 根据按钮类型触发相应的3D动画
+            if (variable === 'CAN_DW.CAN_LeftDoor' || variable === 'CAN_DW.CAN_RightDoor') {
+                handleCANDoorControl(variable, value, button);
+            }
+        });
+    });
+
+    addLogEntry('CAN门控制按钮已绑定到3D动画', 'success');
+}
+
+/**
+ * 处理CAN门控制并触发3D动画
+ */
+function handleCANDoorControl(variable, value, button) {
+    if (!car3DRenderer) {
+        console.warn('3D渲染器未初始化');
+        addLogEntry('3D渲染器未初始化，无法播放门动画', 'warning');
+        return;
+    }
+
+    const buttonText = button.querySelector('span').textContent;
+    console.log(`处理CAN门控制: ${variable} = ${value} (${buttonText})`);
+
+    // 根据按钮值决定动画行为
+    if (value === 2) {
+        // 开门 (HTML中开门按钮的data-value="2")
+        console.log('CAN信号触发开门动画');
+        const doorAnimations = ['DoorFLOpen', 'DoorFROpen'];
+
+        // 强制设置门状态为关闭，然后触发开门
+        if (car3DRenderer.doorStates) {
+            car3DRenderer.doorStates['DoorFLOpen'] = false;
+            car3DRenderer.doorStates['DoorFROpen'] = false;
+        }
+
+        const result = car3DRenderer.toggleMultipleDoors(doorAnimations);
+        if (result.success && result.action === 'open') {
+            addLogEntry('CAN信号开门动画播放成功', 'success');
+            updateDoorButtonState('open');
+        }
+
+    } else if (value === 1) {
+        // 关门 (HTML中关门按钮的data-value="1")
+        console.log('CAN信号触发关门动画');
+        const doorAnimations = ['DoorFLOpen', 'DoorFROpen'];
+
+        // 强制设置门状态为开启，然后触发关门
+        if (car3DRenderer.doorStates) {
+            car3DRenderer.doorStates['DoorFLOpen'] = true;
+            car3DRenderer.doorStates['DoorFROpen'] = true;
+        }
+
+        const result = car3DRenderer.toggleMultipleDoors(doorAnimations);
+        if (result.success && result.action === 'close') {
+            addLogEntry('CAN信号关门动画播放成功', 'success');
+            updateDoorButtonState('close');
+        }
+
+    } else if (value === 0) {
+        // 停止 - 不触发动画，只更新状态
+        console.log('CAN信号停止门操作');
+        addLogEntry('门操作已停止', 'info');
+    }
+
+    // 更新CAN变量状态
+    canVariables[variable] = value;
+
+    // 更新状态显示
+    updateStatusDisplay();
 }

@@ -287,6 +287,16 @@ class Car3DRenderer {
             leftDoor: !!this.doorAnimations.leftDoor,
             rightDoor: !!this.doorAnimations.rightDoor
         });
+
+        // 存储所有动画以便按名称查找
+        this.allAnimations = {};
+        animations.forEach(clip => {
+            const action = this.mixer.clipAction(clip);
+            action.setLoop(THREE.LoopOnce);
+            action.clampWhenFinished = true;
+            this.allAnimations[clip.name] = action;
+            console.log(`存储动画: "${clip.name}"`);
+        });
     }
 
     // 判断是否为门主体对象
@@ -1511,6 +1521,171 @@ class Car3DRenderer {
         setTimeout(() => {
             this.startCameraAnimation(mode, duration);
         }, 100);
+    }
+
+    // 强制修复所有材质
+    fixAllMaterials() {
+        if (!this.car) return;
+
+        console.log('=== 开始强制修复材质 ===');
+
+        this.car.traverse((child) => {
+            if (child.isMesh && child.material) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+
+                materials.forEach((material, index) => {
+                    // 强制设置颜色，避免纯白色
+                    if (!material.color || material.color.getHex() === 0xffffff) {
+                        const meshName = child.name.toLowerCase();
+
+                        if (meshName.includes('body') || meshName.includes('car')) {
+                            material.color = new THREE.Color(0x1e40af); // 深蓝色车身
+                        } else if (meshName.includes('wheel') || meshName.includes('tire')) {
+                            material.color = new THREE.Color(0x111827); // 黑色轮胎
+                        } else if (meshName.includes('glass') || meshName.includes('window')) {
+                            material.color = new THREE.Color(0x60a5fa); // 浅蓝色玻璃
+                            material.transparent = true;
+                            material.opacity = 0.4;
+                        } else if (meshName.includes('chrome') || meshName.includes('metal')) {
+                            material.color = new THREE.Color(0x9ca3af); // 银色金属
+                            material.metalness = 0.8;
+                            material.roughness = 0.2;
+                        } else if (meshName.includes('light')) {
+                            material.color = new THREE.Color(0xfbbf24); // 黄色灯光
+                            material.emissive = new THREE.Color(0x332200);
+                        } else {
+                            // 默认颜色
+                            material.color = new THREE.Color(0x6b7280); // 中灰色
+                        }
+
+                        console.log(`修复材质: ${child.name}[${index}] -> ${material.color.getHexString()}`);
+                    }
+
+                    // 确保材质更新
+                    material.needsUpdate = true;
+                });
+            }
+        });
+
+        console.log('=== 材质修复完成 ===');
+    }
+
+    // 播放指定名称的动画
+    playAnimationByName(animationName, reverse = false) {
+        if (!this.mixer || !this.allAnimations) {
+            console.warn('动画系统未初始化');
+            return false;
+        }
+
+        const action = this.allAnimations[animationName];
+        if (!action) {
+            console.warn(`未找到动画: "${animationName}"`);
+            console.log('可用动画:', Object.keys(this.allAnimations));
+            return false;
+        }
+
+        console.log(`播放动画: "${animationName}"${reverse ? ' (倒放)' : ''}`);
+
+        if (reverse) {
+            // 倒放动画
+            action.reset();
+            action.time = action.getClip().duration; // 从结尾开始
+            action.timeScale = -1; // 负时间缩放实现倒放
+            action.paused = false;
+            action.play();
+        } else {
+            // 正常播放动画
+            action.reset();
+            action.time = 0;
+            action.timeScale = 1; // 正常时间缩放
+            action.paused = false;
+            action.play();
+        }
+
+        return true;
+    }
+
+    // 获取所有可用动画名称
+    getAvailableAnimations() {
+        if (!this.allAnimations) {
+            return [];
+        }
+        return Object.keys(this.allAnimations);
+    }
+
+    // 开门/关门切换（单个动画）
+    toggleDoor(animationName) {
+        if (!this.doorStates) {
+            this.doorStates = {};
+        }
+
+        // 获取当前门的状态（默认为关闭状态）
+        const isOpen = this.doorStates[animationName] || false;
+
+        if (isOpen) {
+            // 门是开的，播放关门动画（倒放）
+            console.log(`关门: ${animationName}`);
+            const success = this.playAnimationByName(animationName, true);
+            if (success) {
+                this.doorStates[animationName] = false;
+            }
+            return { action: 'close', success };
+        } else {
+            // 门是关的，播放开门动画（正放）
+            console.log(`开门: ${animationName}`);
+            const success = this.playAnimationByName(animationName, false);
+            if (success) {
+                this.doorStates[animationName] = true;
+            }
+            return { action: 'open', success };
+        }
+    }
+
+    // 同时控制多个门的开关
+    toggleMultipleDoors(animationNames) {
+        if (!this.doorStates) {
+            this.doorStates = {};
+        }
+
+        // 检查所有门的状态，如果任何一个门是开的，就全部关门；否则全部开门
+        const anyDoorOpen = animationNames.some(name => this.doorStates[name] || false);
+
+        const results = [];
+        let allSuccess = true;
+
+        if (anyDoorOpen) {
+            // 有门是开的，全部关门
+            console.log('关闭所有门:', animationNames);
+            animationNames.forEach(animationName => {
+                const success = this.playAnimationByName(animationName, true);
+                if (success) {
+                    this.doorStates[animationName] = false;
+                }
+                results.push({ animation: animationName, success });
+                if (!success) allSuccess = false;
+            });
+            return { action: 'close', success: allSuccess, results };
+        } else {
+            // 所有门都是关的，全部开门
+            console.log('打开所有门:', animationNames);
+            animationNames.forEach(animationName => {
+                const success = this.playAnimationByName(animationName, false);
+                if (success) {
+                    this.doorStates[animationName] = true;
+                }
+                results.push({ animation: animationName, success });
+                if (!success) allSuccess = false;
+            });
+            return { action: 'open', success: allSuccess, results };
+        }
+    }
+
+    // 获取门的状态
+    getDoorState(animationName) {
+        if (!this.doorStates) {
+            return false;
+        }
+        return this.doorStates[animationName] || false;
     }
 }
 
